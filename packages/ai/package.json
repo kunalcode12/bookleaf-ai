@@ -1,0 +1,28 @@
+{
+  "name": "@bookleaf/ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Leaf — BookLeaf's support intelligence: provider gateway with failover, prompts, injection guards, context assembly, output checks, deterministic fallbacks and the evaluation suite.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./checks": "./src/checks.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "eval": "tsx src/evals/run.ts"
+  },
+  "dependencies": {
+    "@bookleaf/contracts": "workspace:*",
+    "@bookleaf/domain": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "dotenv": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "bookleaf-support",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BookLeaf Author Support & Communication Portal — author portal, admin desk and the Leaf AI engine.",
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev --filter=@bookleaf/api --filter=@bookleaf/web",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "db:migrate": "pnpm --filter @bookleaf/api run db:migrate",
+    "db:seed": "pnpm --filter @bookleaf/api run db:seed",
+    "db:reset": "pnpm --filter @bookleaf/api run db:reset",
+    "db:generate": "pnpm --filter @bookleaf/db run generate",
+    "ai:eval": "pnpm --filter @bookleaf/ai run eval",
+    "docs:openapi": "pnpm --filter @bookleaf/api run openapi:export",
+    "e2e": "pnpm --filter @bookleaf/web run e2e"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.3",
+    "turbo": "2.11.10",
+    "typescript": "catalog:"
+  }
+}

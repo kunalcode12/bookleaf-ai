@@ -1,0 +1,21 @@
+{
+  "name": "@bookleaf/domain",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pure BookLeaf business rules (royalty calendar, production stages, SLA, ticket state machine, triage policy) and the BookLeaf knowledge base content. No I/O.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@bookleaf/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

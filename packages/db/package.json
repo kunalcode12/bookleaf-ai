@@ -1,0 +1,30 @@
+{
+  "name": "@bookleaf/db",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Drizzle schema, SQL migrations (incl. row-level security), database client factory (Postgres / embedded PGlite) and actor-scoped transactions.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@bookleaf/contracts": "workspace:*",
+    "@electric-sql/pglite": "catalog:",
+    "@electric-sql/pglite-pgvector": "catalog:",
+    "drizzle-orm": "catalog:",
+    "postgres": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "drizzle-kit": "0.31.11",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
