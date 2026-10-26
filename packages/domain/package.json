@@ -5,14 +5,16 @@
   "description": "Pure BookLeaf business rules (royalty calendar, production stages, SLA, ticket state machine, triage policy) and the BookLeaf knowledge base content. No I/O.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./dataset": "./src/dataset.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
   },
   "dependencies": {
-    "@bookleaf/contracts": "workspace:*"
+    "@bookleaf/contracts": "workspace:*",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "typescript": "catalog:",
