@@ -160,7 +160,7 @@ export async function runAssist(
     const sections = rankSectionsByKeywords(question.text, input.knowledge);
     return {
       origin: 'fallback',
-      answer: fallbackAnswer(sections),
+      answer: fallbackAnswer(question.text, sections),
       needsHuman: true,
       suggestedCategory: guess.category,
       sources: sections.map((s) => ({ slug: s.slug, title: s.title })),
