@@ -6,7 +6,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./checks": "./src/checks.ts"
+    "./checks": "./src/checks.ts",
+    "./testing": "./src/testing/fixtures.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
