@@ -1,0 +1,315 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * "Paper & Ink" — BookLeaf's interface reads like a well-made book: warm paper, deep ink,
+ * a saffron accent, and Leaf's own green for everything the AI touches.
+ * "Midnight Library" is the same system after dark.
+ */
+:root {
+  --radius: 0.9rem;
+
+  --background: #f6efe3;
+  --background-deep: #ede3d1;
+  --foreground: #1c1a16;
+  --card: #fffcf5;
+  --card-foreground: #1c1a16;
+  --popover: #fffcf5;
+  --muted: #eee5d5;
+  --muted-foreground: #6b6355;
+  --border: #e0d3bd;
+  --input: #d8c9b0;
+  --ring: #1c1a16;
+
+  --primary: #1c1a16;
+  --primary-foreground: #fbf6ec;
+  --accent: #d47f22;
+  --accent-foreground: #1c1a16;
+  --accent-soft: #f7e3c9;
+  --accent-ink: #8a4c0c;
+
+  --leaf: #2d6a4d;
+  --leaf-foreground: #f1f8f3;
+  --leaf-soft: #e0eee4;
+  --leaf-ink: #1d4a35;
+
+  --critical: #b3261e;
+  --critical-soft: #f7dcd6;
+  --high: #c2410c;
+  --high-soft: #fae3d1;
+  --medium: #9a6206;
+  --medium-soft: #f5e8cc;
+  --low: #3d6283;
+  --low-soft: #dce7f0;
+
+  --success: #2d6a4d;
+  --success-soft: #dcede2;
+  --warning: #b45309;
+  --warning-soft: #fae8cd;
+  --danger: #b3261e;
+  --danger-soft: #f7dcd6;
+  --info: #2b4c7e;
+  --info-soft: #dbe5f2;
+
+  --shadow-page:
+    0 1px 0 rgb(28 26 22 / 0.04), 0 1px 2px rgb(28 26 22 / 0.06), 0 12px 32px -18px rgb(28 26 22 / 0.28);
+  --shadow-lift: 0 2px 4px rgb(28 26 22 / 0.06), 0 22px 48px -22px rgb(28 26 22 / 0.4);
+
+  /* Chart series: validated (dataviz validator) against the card surface #fffcf5 / #1b1814. */
+  --chart-1: #2c6fbe;
+  --chart-2: #c46d14;
+  --chart-grid: #ebe2d2;
+  --chart-axis: #cdbfa8;
+  --chart-muted: #8a8173;
+}
+
+.dark {
+  --background: #13110e;
+  --background-deep: #0c0b09;
+  --foreground: #f1e9da;
+  --card: #1b1814;
+  --card-foreground: #f1e9da;
+  --popover: #201c17;
+  --muted: #27221c;
+  --muted-foreground: #a69c8b;
+  --border: #36302a;
+  --input: #433b32;
+  --ring: #f1e9da;
+
+  --primary: #f1e9da;
+  --primary-foreground: #13110e;
+  --accent: #e8a44a;
+  --accent-foreground: #13110e;
+  --accent-soft: #3a2a16;
+  --accent-ink: #f3c17f;
+
+  --leaf: #7bc499;
+  --leaf-foreground: #0e1c14;
+  --leaf-soft: #162a1f;
+  --leaf-ink: #a9dcbd;
+
+  --critical: #f27a6e;
+  --critical-soft: #3b1a16;
+  --high: #f59b5d;
+  --high-soft: #3a2214;
+  --medium: #e2b85b;
+  --medium-soft: #352a13;
+  --low: #8fb4d7;
+  --low-soft: #192634;
+
+  --success: #7bc499;
+  --success-soft: #162a1f;
+  --warning: #f0a45a;
+  --warning-soft: #392612;
+  --danger: #f27a6e;
+  --danger-soft: #3b1a16;
+  --info: #8fb4d7;
+  --info-soft: #192634;
+
+  --shadow-page: 0 1px 0 rgb(0 0 0 / 0.35), 0 14px 34px -18px rgb(0 0 0 / 0.7);
+  --shadow-lift: 0 2px 6px rgb(0 0 0 / 0.4), 0 24px 52px -22px rgb(0 0 0 / 0.85);
+
+  --chart-1: #4a8fdf;
+  --chart-2: #c9802a;
+  --chart-grid: #2c2823;
+  --chart-axis: #403a32;
+  --chart-muted: #8f8676;
+}
+
+@theme inline {
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-background-deep: var(--background-deep);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-leaf: var(--leaf);
+  --color-leaf-foreground: var(--leaf-foreground);
+  --color-leaf-soft: var(--leaf-soft);
+  --color-leaf-ink: var(--leaf-ink);
+  --color-critical: var(--critical);
+  --color-critical-soft: var(--critical-soft);
+  --color-high: var(--high);
+  --color-high-soft: var(--high-soft);
+  --color-medium: var(--medium);
+  --color-medium-soft: var(--medium-soft);
+  --color-low: var(--low);
+  --color-low-soft: var(--low-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 3px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 12px);
+
+  --shadow-page: var(--shadow-page);
+  --shadow-lift: var(--shadow-lift);
+
+  --animate-shimmer: shimmer 1.8s ease-in-out infinite;
+  --animate-caret: caret 1.05s steps(1) infinite;
+  --animate-leaf-pulse: leaf-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 180% 0;
+  }
+  100% {
+    background-position: -80% 0;
+  }
+}
+
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes leaf-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--leaf) 35%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 8px color-mix(in oklab, var(--leaf) 0%, transparent);
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    background-image:
+      radial-gradient(
+        1100px 520px at 0% -10%,
+        color-mix(in oklab, var(--accent) 9%, transparent),
+        transparent 62%
+      ),
+      radial-gradient(
+        900px 480px at 110% 0%,
+        color-mix(in oklab, var(--leaf) 7%, transparent),
+        transparent 60%
+      );
+    background-attachment: fixed;
+    min-height: 100dvh;
+  }
+  /* Big headlines use Fraunces' display cut; everything smaller keeps automatic optical sizing
+     so small figures ("v1", "10") stay legible. */
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    font-variation-settings:
+      "opsz" 144,
+      "SOFT" 40;
+    letter-spacing: -0.025em;
+  }
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-variation-settings: "SOFT" 40;
+    letter-spacing: -0.02em;
+  }
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--foreground);
+  }
+  /* Grid tracks (implicit `auto` and `fr`) must never be widened by unbreakable content such as a
+     truncated subject line; that is what pushes a phone layout off-screen. */
+  .grid > * {
+    min-width: 0;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* Family and spacing only: headings keep their optical-size settings from the base layer. */
+@utility font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.025em;
+}
+
+/* Hand-set numbers: big royalty figures, counters, ticket numbers. Proportional digits; columns
+   that must align add `tabular-nums` themselves. */
+@utility figure {
+  font-family: var(--font-display);
+  font-variation-settings: "SOFT" 20;
+  font-variant-numeric: lining-nums proportional-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Paper card with the faint stack of pages underneath. */
+@utility paper {
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-page);
+}
+
+@utility skeleton {
+  background: linear-gradient(
+    100deg,
+    var(--muted) 30%,
+    color-mix(in oklab, var(--muted) 55%, var(--card)) 50%,
+    var(--muted) 70%
+  );
+  background-size: 220% 100%;
+  animation: var(--animate-shimmer);
+}
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--input) transparent;
+}
+
+/* Reduced motion must beat every component's own animation, hence !important. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: accessibility override */
+    animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: accessibility override */
+    animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: accessibility override */
+    transition-duration: 0.01ms !important;
+  }
+}
