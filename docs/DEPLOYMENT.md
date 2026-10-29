@@ -42,9 +42,8 @@ and `node apps/api/dist/worker.js` as a second service.
 
 ## 3. Web on Vercel
 
-1. **Add New → Project →** import the repository, then set **Root Directory** to `apps/web`. Vercel detects Next.js and
-   pnpm.
-2. Environment variables:
+**Add New → Project →** import the repository and set **Root Directory** to `apps/web`; Vercel detects Next.js and
+pnpm. Add these environment variables, then deploy:
 
 | Variable                   | Value                                     |
 | -------------------------- | ----------------------------------------- |
@@ -52,7 +51,7 @@ and `node apps/api/dist/worker.js` as a second service.
 | `API_ORIGIN_SECRET`        | Same as the API's `ORIGIN_SECRET`, if set |
 | `NEXT_PUBLIC_API_DOCS_URL` | `<API_ORIGIN>/docs`                       |
 
-3. Deploy, then update `PUBLIC_APP_URL` and `APP_ORIGINS` on Render if the final domain differs.
+If the final domain differs from the one you gave Render, update `PUBLIC_APP_URL` and `APP_ORIGINS` there.
 
 ## 4. After the first deploy
 
