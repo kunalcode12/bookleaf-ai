@@ -22,6 +22,7 @@
     "@bookleaf/db": "workspace:*",
     "@bookleaf/domain": "workspace:*",
     "@electric-sql/pglite": "catalog:",
+    "@electric-sql/pglite-pgvector": "catalog:",
     "@fastify/cookie": "11.1.3",
     "@fastify/cors": "11.3.1",
     "@fastify/helmet": "13.2.0",
