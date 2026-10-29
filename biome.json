@@ -18,10 +18,15 @@
       "!**/migrations/meta",
       "!**/playwright-report",
       "!**/test-results",
-      "!docs/openapi.json",
-      "!docs/postman"
+      "!docs/api"
     ]
   },
+  "overrides": [
+    {
+      "includes": ["apps/api/src/cli/**", "packages/ai/src/evals/**"],
+      "linter": { "rules": { "suspicious": { "noConsole": "off" } } }
+    }
+  ],
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
