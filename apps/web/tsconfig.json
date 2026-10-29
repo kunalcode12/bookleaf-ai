@@ -6,6 +6,8 @@
     "allowJs": false,
     "incremental": true,
     "types": ["node"],
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "plugins": [{ "name": "next" }],
     "paths": { "@/*": ["./src/*"] }
   },

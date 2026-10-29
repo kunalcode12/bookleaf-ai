@@ -64,6 +64,10 @@
       "complexity": {
         "noForEach": "off"
       },
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error"
+      },
       "a11y": {
         "noSvgWithoutTitle": "off"
       },
