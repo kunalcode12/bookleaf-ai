@@ -1,0 +1,60 @@
+# Render Blueprint for the BookLeaf API (the web app deploys to Vercel; see docs/DEPLOYMENT.md).
+# Secrets are declared with `sync: false`: Render asks for them when the blueprint is applied.
+services:
+  - type: web
+    name: bookleaf-api
+    runtime: node
+    region: singapore
+    plan: free
+    rootDir: .
+    # --prod=false: NODE_ENV=production would otherwise skip the build tooling (tsup).
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false --filter "@bookleaf/api..." && pnpm --filter @bookleaf/api build
+    startCommand: node --enable-source-maps apps/api/dist/main.js
+    healthCheckPath: /health/ready
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "24"
+      - key: AUTH_PROVIDER
+        value: supabase
+      - key: STORAGE_PROVIDER
+        value: supabase
+      - key: AUTO_MIGRATE
+        value: "true"
+      - key: AUTO_SEED
+        value: "true"
+      - key: WORKER_MODE
+        value: inline
+      - key: DEMO_MODE
+        value: "true"
+      - key: LOG_LEVEL
+        value: info
+      - key: PUBLIC_APP_URL
+        sync: false
+      - key: PUBLIC_API_URL
+        sync: false
+      - key: APP_ORIGINS
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: FILE_SIGNING_SECRET
+        generateValue: true
+      # Optional: set the same value as API_ORIGIN_SECRET on Vercel to reject direct API calls.
+      - key: ORIGIN_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false

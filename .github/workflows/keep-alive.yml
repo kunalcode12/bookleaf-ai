@@ -1,0 +1,23 @@
+name: Keep demo warm
+
+# Free hosting tiers put idle services to sleep; a cold start makes the first click of a reviewer
+# take ~30 s. This pings the readiness endpoint during review hours. Set the API_HEALTH_URL
+# repository secret (e.g. https://bookleaf-api.onrender.com/health/ready) to enable it.
+on:
+  schedule:
+    - cron: "*/10 2-18 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping API
+        env:
+          URL: ${{ secrets.API_HEALTH_URL }}
+        run: |
+          if [ -z "$URL" ]; then echo "API_HEALTH_URL not set; skipping"; exit 0; fi
+          curl --silent --show-error --max-time 60 --retry 2 --output /dev/null --write-out "%{http_code}\n" "$URL"
