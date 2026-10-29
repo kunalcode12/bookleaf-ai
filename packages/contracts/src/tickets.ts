@@ -139,8 +139,8 @@ export type AuthorTicketListResponse = z.infer<typeof AuthorTicketListResponseSc
 
 export const CreateTicketRequestSchema = z
   .object({
-    /** null = "General / Account Level". */
-    bookId: IdSchema.nullable(),
+    /** null or omitted = "General / Account Level". */
+    bookId: IdSchema.nullish().transform((v) => v ?? null),
     subject,
     description,
     attachmentIds,
