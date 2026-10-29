@@ -18,22 +18,64 @@ export class AuthorService {
     private readonly clock: Clock,
   ) {}
 
-  private columns() {
-    return {
-      id: authors.id,
-      externalId: authors.externalId,
-      name: authors.name,
-      email: authors.email,
-      phone: authors.phone,
-      city: authors.city,
-      joinedDate: authors.joinedDate,
-      bookCount: sql<number>`(select count(*)::int from ${books} where ${books.authorId} = ${authors.id})`,
-      liveBooks: sql<number>`(select count(*)::int from ${books} where ${books.authorId} = ${authors.id} and ${books.stage} = 'published_live')`,
-      copiesSold: sql<number>`(select coalesce(sum(${books.copiesSold}), 0)::int from ${books} where ${books.authorId} = ${authors.id})`,
-      earned: sql<number>`(select coalesce(sum(${books.royaltyEarnedMinor}), 0)::bigint from ${books} where ${books.authorId} = ${authors.id})`,
-      pending: sql<number>`(select coalesce(sum(${books.royaltyPendingMinor}), 0)::bigint from ${books} where ${books.authorId} = ${authors.id})`,
-      openTickets: sql<number>`(select count(*)::int from ${tickets} where ${tickets.authorId} = ${authors.id} and ${tickets.status} in ('open', 'in_progress'))`,
-    };
+  private rows(actor: RequestActor, authorId?: string) {
+    return withActor(
+      this.db,
+      actor.db,
+      (tx) => {
+        // Pre-aggregated per author and joined, rather than correlated subqueries: Drizzle drops
+        // table qualifiers inside sql`` fields of a single-table select, which would silently
+        // correlate the subquery with itself.
+        const bookStats = tx
+          .select({
+            authorId: books.authorId,
+            bookCount: sql<number>`count(*)::int`.as('book_count'),
+            liveBooks: sql<number>`(count(*) filter (where ${books.stage} = 'published_live'))::int`.as(
+              'live_books',
+            ),
+            copiesSold: sql<number>`coalesce(sum(${books.copiesSold}), 0)::int`.as('copies_sold'),
+            earned: sql<number>`coalesce(sum(${books.royaltyEarnedMinor}), 0)::bigint`.as('earned'),
+            pending: sql<number>`coalesce(sum(${books.royaltyPendingMinor}), 0)::bigint`.as('pending'),
+          })
+          .from(books)
+          .groupBy(books.authorId)
+          .as('book_stats');
+        const ticketStats = tx
+          .select({
+            authorId: tickets.authorId,
+            openTickets:
+              sql<number>`(count(*) filter (where ${tickets.status} in ('open', 'in_progress')))::int`.as(
+                'open_tickets',
+              ),
+          })
+          .from(tickets)
+          .groupBy(tickets.authorId)
+          .as('ticket_stats');
+
+        return tx
+          .select({
+            id: authors.id,
+            externalId: authors.externalId,
+            name: authors.name,
+            email: authors.email,
+            phone: authors.phone,
+            city: authors.city,
+            joinedDate: authors.joinedDate,
+            bookCount: sql<number>`coalesce(${bookStats.bookCount}, 0)`,
+            liveBooks: sql<number>`coalesce(${bookStats.liveBooks}, 0)`,
+            copiesSold: sql<number>`coalesce(${bookStats.copiesSold}, 0)`,
+            earned: sql<number>`coalesce(${bookStats.earned}, 0)`,
+            pending: sql<number>`coalesce(${bookStats.pending}, 0)`,
+            openTickets: sql<number>`coalesce(${ticketStats.openTickets}, 0)`,
+          })
+          .from(authors)
+          .leftJoin(bookStats, eq(bookStats.authorId, authors.id))
+          .leftJoin(ticketStats, eq(ticketStats.authorId, authors.id))
+          .where(authorId ? eq(authors.id, authorId) : undefined)
+          .orderBy(asc(authors.name));
+      },
+      { readOnly: true },
+    );
   }
 
   private toItem(row: Awaited<ReturnType<AuthorService['rows']>>[number]): AuthorListItem {
@@ -51,20 +93,6 @@ export class AuthorService {
       royaltyPending: money(Number(row.pending)),
       openTickets: Number(row.openTickets),
     };
-  }
-
-  private rows(actor: RequestActor, authorId?: string) {
-    return withActor(
-      this.db,
-      actor.db,
-      (tx) =>
-        tx
-          .select(this.columns())
-          .from(authors)
-          .where(authorId ? eq(authors.id, authorId) : undefined)
-          .orderBy(asc(authors.name)),
-      { readOnly: true },
-    );
   }
 
   async list(actor: RequestActor): Promise<AuthorListItem[]> {
