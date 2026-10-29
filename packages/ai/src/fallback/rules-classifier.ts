@@ -26,6 +26,8 @@ const CATEGORY_PATTERNS: Record<TicketCategory, readonly WeightedPattern[]> = {
       2.5,
     ],
     [/\b(misspel|incorrect|wrong)\w*\b.{0,30}\b(name|title|author)\b/i, 1.5],
+    [/\b(name|title|spelling)\b.{0,30}\b(misspel\w*|misspelt|typo|spelt wrong|spelled wrong)/i, 2.5],
+    [/\b(book )?description\b|\bblurb\b|\bauthor bio\b/i, 1],
   ],
   printing_quality: [
     [/\bprint(ing|ed)?\b/i, 1.5],
@@ -139,7 +141,7 @@ export function classifyByRules(input: {
         text,
       ),
     printDefect:
-      /\bmisprint\w*|\bblurr?y\b|\bmisaligned\b|\bbinding\b|\bsmudg\w*|\bdefect\w*|\bdamaged\b|\bpages? (are )?(falling|loose|missing|torn)/i.test(
+      /\bmisprint\w*|\bblurr?y\b|\bmisaligned\b|\bbinding\b|\bsmudg\w*|\bdefect\w*|\bdamaged\b|\bpages? (are )?(falling|loose|missing|torn)|\bupside[- ]down\b|\bprinted (wrong|incorrectly|backwards)/i.test(
         text,
       ),
     platformUnavailable:
