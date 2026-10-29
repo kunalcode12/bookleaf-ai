@@ -214,12 +214,28 @@ BEGIN
 END
 $$;
 --> statement-breakpoint
+-- Tickets: a read receipt (author_last_read_at) or a new embedding is not a "change" and must not
+-- reorder the admin queue's "recently updated" view.
+CREATE OR REPLACE FUNCTION app.touch_ticket_updated_at() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF (to_jsonb(NEW) - ARRAY['author_last_read_at', 'updated_at', 'embedding', 'search'])
+     = (to_jsonb(OLD) - ARRAY['author_last_read_at', 'updated_at', 'embedding', 'search']) THEN
+    RETURN NEW;
+  END IF;
+  NEW.updated_at := now();
+  RETURN NEW;
+END
+$$;
+--> statement-breakpoint
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON app.tickets
+  FOR EACH ROW EXECUTE FUNCTION app.touch_ticket_updated_at();
+--> statement-breakpoint
 DO $$
 DECLARE
   tbl text;
 BEGIN
   FOREACH tbl IN ARRAY ARRAY[
-    'authors', 'profiles', 'books', 'tickets', 'ai_drafts', 'kb_sections', 'kb_examples',
+    'authors', 'profiles', 'books', 'ai_drafts', 'kb_sections', 'kb_examples',
     'incident_alerts', 'assist_conversations'
   ]
   LOOP
