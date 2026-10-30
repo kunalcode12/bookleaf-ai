@@ -5,6 +5,8 @@ export type CircuitState = 'closed' | 'open' | 'half_open';
 export interface CircuitOptions {
   failureThreshold: number;
   cooldownMs: number;
+  /** Ceiling for the doubling cooldown while a provider keeps failing its trial requests. */
+  maxCooldownMs: number;
   authCooldownMs: number;
   quotaCooldownMs: number;
 }
@@ -12,6 +14,7 @@ export interface CircuitOptions {
 const DEFAULTS: CircuitOptions = {
   failureThreshold: 3,
   cooldownMs: 60_000,
+  maxCooldownMs: 10 * 60_000,
   authCooldownMs: 10 * 60_000,
   quotaCooldownMs: 15 * 60_000,
 };
@@ -76,7 +79,10 @@ export class CircuitBreaker {
     else if (kind === 'quota_exhausted') cooldown = Math.max(this.options.quotaCooldownMs, retryAfterMs ?? 0);
     else if (kind === 'rate_limited') cooldown = Math.max(retryAfterMs ?? 0, 15_000);
     else if (this.state === 'half_open' || this.consecutiveFailures >= this.options.failureThreshold) {
-      cooldown = this.options.cooldownMs;
+      // Every failure past the threshold (failed trials included) doubles the cooldown, so a
+      // provider that stays down costs one probe every few minutes rather than one a minute.
+      const beyond = Math.max(0, this.consecutiveFailures - this.options.failureThreshold);
+      cooldown = Math.min(this.options.cooldownMs * 2 ** beyond, this.options.maxCooldownMs);
     }
     if (cooldown !== null) {
       this.state = 'open';

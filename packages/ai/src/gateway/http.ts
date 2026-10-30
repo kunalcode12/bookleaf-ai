@@ -34,7 +34,12 @@ export async function providerFetch(
   }
 }
 
-/** Iterates `data:` payloads of a text/event-stream response body. */
+/**
+ * Iterates `data:` payloads of a text/event-stream response body. Lines may end in CRLF (Google's
+ * servers send `\r\n\r\n` between events), LF or CR, so line ends are normalised before events are
+ * split on blank lines; a CR closing a read may be half of a CRLF, so it waits for the next read.
+ * At end of stream every remaining event is flushed, including a last one without its blank line.
+ */
 export async function* readSse(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
@@ -42,24 +47,23 @@ export async function* readSse(body: ReadableStream<Uint8Array>): AsyncGenerator
   try {
     while (true) {
       const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let boundary = buffer.indexOf('\n\n');
-      while (boundary !== -1) {
-        const rawEvent = buffer.slice(0, boundary);
-        buffer = buffer.slice(boundary + 2);
-        const data = rawEvent
-          .split(/\r?\n/)
+      buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
+      const held = !done && buffer.endsWith('\r') ? '\r' : '';
+      const events = buffer
+        .slice(0, buffer.length - held.length)
+        .replace(/\r\n?/g, '\n')
+        .split('\n\n');
+      buffer = (done ? '' : events.pop()!) + held;
+      for (const event of events) {
+        const data = event
+          .split('\n')
           .filter((line) => line.startsWith('data:'))
           .map((line) => line.slice(5).replace(/^ /, ''))
           .join('\n');
         if (data) yield data;
-        boundary = buffer.indexOf('\n\n');
       }
-      buffer = buffer.replace(/\r\n/g, '\n');
+      if (done) return;
     }
-    const tail = buffer.trim();
-    if (tail.startsWith('data:')) yield tail.slice(5).trim();
   } finally {
     reader.releaseLock();
   }

@@ -42,9 +42,12 @@ export class ProviderError extends Error {
     this.retryAfterMs = details.retryAfterMs ?? null;
   }
 
-  /** Transient failures worth one immediate retry on the same provider. */
+  /**
+   * Quick transient failures worth one immediate retry on the same model. A timeout is not one:
+   * it has already spent the whole time budget, so the next model in the route gets the request.
+   */
   get transient(): boolean {
-    return this.kind === 'timeout' || this.kind === 'unavailable' || this.kind === 'network';
+    return this.kind === 'unavailable' || this.kind === 'network';
   }
 
   /** Failures that say nothing about provider health (don't trip the circuit breaker). */
@@ -97,7 +100,9 @@ export function errorFromResponse(
   if (status === 401 || status === 403)
     return new ProviderError('auth', `Authentication failed (${status})`, details);
   if (status === 429) {
-    const daily = /per\s*day|PerDay|daily|quota.*exceeded|RESOURCE_EXHAUSTED.*day/i.test(body);
+    // Only an explicit per-day quota parks the model until the reset. Google says "Quota exceeded"
+    // for its per-minute limits too, so that wording alone means a short wait, not a lost day.
+    const daily = /PerDay|per[\s_-]?day|daily/i.test(body);
     return new ProviderError(daily ? 'quota_exhausted' : 'rate_limited', `Rate limited: ${snippet}`, details);
   }
   if (status === 408 || status === 504)

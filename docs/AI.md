@@ -58,7 +58,7 @@ Configured in `packages/ai/src/config.ts` and overridable per task through `LEAF
 | Task                 | Route (cheapest sufficient first)                                                                      | Why                                                                           |
 | -------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
 | Triage               | Gemini Flash-Lite (minimal reasoning) → second Flash-Lite model → Groq `gpt-oss-20b` → OpenRouter free | Short structured output; speed and cost matter, depth doesn't                 |
-| Draft                | Gemini Flash (low reasoning) → second Flash model → Groq `gpt-oss-120b` → OpenRouter free              | Writing quality and instruction-following matter; still cheap                 |
+| Draft                | Gemini Flash (low reasoning) → second Flash → Groq `gpt-oss-120b` → `gpt-oss-20b` → OpenRouter free    | Writing quality and instruction-following matter; still cheap                 |
 | Ask Leaf             | Gemini Flash-Lite → Groq `gpt-oss-20b` → OpenRouter free                                               | Short answers from given text                                                 |
 | Summaries            | Gemini Flash-Lite → Groq `gpt-oss-20b`                                                                 | Compression only                                                              |
 | Embeddings           | `gemini-embedding-001`                                                                                 | Free tier; one vector space for policies, examples and tickets                |
@@ -83,12 +83,18 @@ configuration either way.
 - **Provider adapters:** Gemini `generateContent` (native JSON schema output, thinking level) and one OpenAI-compatible
   adapter for Groq and OpenRouter that negotiates `json_schema` (strict) → `json_object` → prompt-only.
 - **Circuit breakers** per provider and model: three consecutive failures open the circuit for a minute, then one
-  half-open probe decides. A definitive failure (bad API key, exhausted daily quota) opens it at once for 10–15
-  minutes, so a dead provider costs nothing instead of a timeout on every ticket.
+  half-open probe decides; each failed probe doubles the cooldown, up to 10 minutes. A definitive failure opens it at
+  once: a bad API key for 10 minutes, an exhausted daily quota until the provider's stated reset (at least 15
+  minutes). A dead provider costs nothing instead of a timeout on every ticket.
 - **Client-side rate limits** (RPM, TPM, RPD) per model, kept just under each free tier (`LEAF_RATE_LIMITS` overrides),
-  so quota errors are avoided rather than handled.
-- **Retries** for transient errors on the same model; **invalid-output failover** when a reply fails schema validation;
-  **streaming failover**: if a stream dies mid-answer the next model takes over and the UI resets the partial text.
+  so quota errors are mostly avoided rather than handled. Gemini's free tier allows 20 requests a day per Flash model
+  (October 2026), so on a busy day drafts move on to Groq once both Flash quotas are used.
+- **Retries:** one quick retry on the same model when the provider is briefly unavailable (503 "high demand") or the
+  network drops. A timeout (or a 408/504) has already used its time budget (20 s; 30 s for drafts), so it moves
+  straight to the next model. A per-minute 429 skips the model for the provider's stated wait; only a per-day quota
+  parks it until the reset. **Invalid-output failover** when a reply
+  fails schema validation; **streaming failover**: if a stream dies mid-answer the next model takes over and the UI
+  resets the partial text.
 - **Telemetry:** every call (success, error, fallback, skip) is written to `ai_runs` with tokens, latency, attempt and
   estimated cost, and feeds Insights and `GET /admin/ai/health`.
 

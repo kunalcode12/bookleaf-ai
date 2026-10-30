@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ProviderError } from '../errors';
+import { readSse } from '../http';
 import type { GenerateRequest } from '../types';
 import { GeminiProvider, normalize } from './gemini';
 import { OpenAICompatibleProvider, parseGuardScore } from './openai-compatible';
@@ -149,6 +150,34 @@ describe('GeminiProvider', () => {
     const v = normalize([3, 4]);
     expect(v[0]).toBeCloseTo(0.6);
     expect(v[1]).toBeCloseTo(0.8);
+  });
+});
+
+describe('readSse', () => {
+  const collect = async (...reads: string[]) => {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const read of reads) controller.enqueue(encoder.encode(read));
+        controller.close();
+      },
+    });
+    const out: string[] = [];
+    for await (const data of readSse(body)) out.push(data);
+    return out;
+  };
+
+  it('splits CRLF-framed events, including several in the final read', async () => {
+    // Google's framing; the old parser glued the last read's events together and dropped them.
+    expect(await collect('data: 1\r\n\r\n', 'data: 2\r\n\r\ndata: 3\r\n\r\n')).toEqual(['1', '2', '3']);
+  });
+
+  it('copes with a CRLF split across reads and a last event without its blank line', async () => {
+    expect(await collect('data: 1\r', '\n\r\ndata: 2\n\ndata: 3')).toEqual(['1', '2', '3']);
+  });
+
+  it('joins multi-line data fields and ignores other fields', async () => {
+    expect(await collect('event: delta\nid: 7\ndata: a\ndata: b\n\n')).toEqual(['a\nb']);
   });
 });
 

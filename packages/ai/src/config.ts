@@ -6,9 +6,13 @@ export type LlmTask = 'triage' | 'draft' | 'assist' | 'summarize';
 
 /**
  * Model routes per task, cheapest-sufficient first. Classification uses Flash-Lite models with
- * minimal thinking (small, fast, ~1k tokens per call); drafting uses the stronger Flash model.
+ * minimal thinking (small, fast, ~1k tokens per call); drafting uses the stronger Flash models.
  * Each Gemini model has its own free quota, so a second Gemini model precedes the cross-provider
  * fallback; Groq runs on independent infrastructure; OpenRouter's free router is the last resort.
+ * Drafts start on 3.6 Flash: in live testing (Oct 2026) the newer 3.8 Flash timed out or returned
+ * "high demand" on most free-tier calls while 3.6 Flash answered in ~5s. Each Groq model has its
+ * own 8k tokens/minute, about one draft a minute, so both gpt-oss models come before OpenRouter's
+ * free router, which hands requests to whichever free model is up (some as small as 2.6B).
  */
 export const DEFAULT_ROUTES: Record<LlmTask, ModelRef[]> = {
   triage: [
@@ -18,9 +22,10 @@ export const DEFAULT_ROUTES: Record<LlmTask, ModelRef[]> = {
     { provider: 'openrouter', model: 'openrouter/free' },
   ],
   draft: [
-    { provider: 'gemini', model: 'gemini-3.8-flash', reasoning: 'low' },
     { provider: 'gemini', model: 'gemini-3.6-flash', reasoning: 'low' },
+    { provider: 'gemini', model: 'gemini-3.8-flash', reasoning: 'low' },
     { provider: 'groq', model: 'openai/gpt-oss-120b', reasoning: 'low' },
+    { provider: 'groq', model: 'openai/gpt-oss-20b', reasoning: 'low' },
     { provider: 'openrouter', model: 'openrouter/free' },
   ],
   assist: [
@@ -46,11 +51,13 @@ export const DEFAULT_GUARD: Pick<ModelRef, 'provider' | 'model'> = {
 
 /**
  * Conservative client-side limits under each provider's free tier. Override with LEAF_RATE_LIMITS
- * once the project's actual quotas (shown in AI Studio / the Groq console) are known.
+ * once the project's actual quotas (shown in AI Studio / the Groq console) are known. Gemini's
+ * free tier allows only 20 requests a day per Flash model (seen in its 429s, Oct 2026), so drafts
+ * past ~40 a day are written by Groq; a quota 429 parks the model until Google's stated reset.
  */
 export const DEFAULT_LIMITS: Record<string, RateLimitSpec> = {
-  'gemini:gemini-3.8-flash': { rpm: 8, rpd: 240 },
-  'gemini:gemini-3.6-flash': { rpm: 8, rpd: 240 },
+  'gemini:gemini-3.8-flash': { rpm: 8, rpd: 20 },
+  'gemini:gemini-3.6-flash': { rpm: 8, rpd: 20 },
   'gemini:gemini-3.5-flash-lite': { rpm: 12, rpd: 900 },
   'gemini:gemini-3.1-flash-lite': { rpm: 12, rpd: 900 },
   'gemini:gemini-embedding-001': { rpm: 80, rpd: 900 },
@@ -60,9 +67,14 @@ export const DEFAULT_LIMITS: Record<string, RateLimitSpec> = {
   'openrouter:openrouter/free': { rpm: 18, rpd: 45 },
 };
 
+/**
+ * Per attempt. Healthy calls finish well inside these (live: Flash drafts 4–14s, Groq ~1.5s);
+ * a model that stalls under free-tier load should hand over to the next one rather than hold up
+ * the ticket — and the queue behind it.
+ */
 export const DEFAULT_TIMEOUTS_MS: Record<LlmTask, number> = {
   triage: 20_000,
-  draft: 45_000,
+  draft: 30_000,
   assist: 20_000,
   summarize: 20_000,
 };
