@@ -4,7 +4,9 @@ services:
   - type: web
     name: bookleaf-api
     runtime: node
-    region: singapore
+    # Next to the Supabase project (eu-west-1, Ireland): every request makes several database round
+    # trips, ~20 ms each from Frankfurt versus ~170 ms from Singapore. A region can't be changed later.
+    region: frankfurt
     plan: free
     rootDir: .
     # --prod=false: NODE_ENV=production would otherwise skip the build tooling (tsup).
@@ -17,6 +19,8 @@ services:
         value: production
       - key: NODE_VERSION
         value: "24"
+      - key: HOST
+        value: 0.0.0.0
       - key: AUTH_PROVIDER
         value: supabase
       - key: STORAGE_PROVIDER
@@ -31,12 +35,25 @@ services:
         value: "true"
       - key: LOG_LEVEL
         value: info
+      # Supabase's session pooler allows ~15 connections per project; this service uses at most 8.
+      - key: DATABASE_POOL_MAX
+        value: "5"
+      - key: LEAF_ALLOWED_LINK_DOMAINS
+        value: bookleaf.in
+      # Resend delivers from onboarding@resend.dev only to the Resend account's own address until a
+      # domain is verified; EMAIL_REDIRECT_TO (optional) sends every email there for the demo.
+      - key: EMAIL_FROM
+        value: BookLeaf Author Support <onboarding@resend.dev>
+      - key: EMAIL_REDIRECT_TO
+        sync: false
       - key: PUBLIC_APP_URL
         sync: false
       - key: PUBLIC_API_URL
         sync: false
       - key: APP_ORIGINS
         sync: false
+      # The session pooler URL (port 5432) — Render has no IPv6, and the direct db.<ref> host is IPv6-only:
+      # postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
       - key: DATABASE_URL
         sync: false
       - key: SUPABASE_URL
@@ -45,6 +62,7 @@ services:
         sync: false
       - key: SUPABASE_SECRET_KEY
         sync: false
+      # Only used if STORAGE_PROVIDER is switched to local.
       - key: FILE_SIGNING_SECRET
         generateValue: true
       # Optional: set the same value as API_ORIGIN_SECRET on Vercel to reject direct API calls.

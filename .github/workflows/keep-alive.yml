@@ -1,8 +1,12 @@
 name: Keep demo warm
 
 # Free hosting tiers put idle services to sleep; a cold start makes the first click of a reviewer
-# take ~30 s. This pings the readiness endpoint during review hours. Set the API_HEALTH_URL
-# repository secret (e.g. https://bookleaf-api.onrender.com/health/ready) to enable it.
+# take ~30 s. This pings the readiness endpoint during review hours once the API_HEALTH_URL
+# repository *variable* is set (Settings → Secrets and variables → Actions → Variables), e.g.
+# https://bookleaf-api.onrender.com/health/ready. Without it the job is skipped before a runner
+# starts, so it costs nothing. On a private repository every run bills at least a minute (~3,000 a
+# month at this schedule, over the 2,000 free), so a free external monitor such as cron-job.org or
+# UptimeRobot is the better keep-alive there — see docs/DEPLOYMENT.md.
 on:
   schedule:
     - cron: "*/10 2-18 * * *"
@@ -12,12 +16,11 @@ permissions: {}
 
 jobs:
   ping:
+    if: ${{ vars.API_HEALTH_URL != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
       - name: Ping API
         env:
-          URL: ${{ secrets.API_HEALTH_URL }}
-        run: |
-          if [ -z "$URL" ]; then echo "API_HEALTH_URL not set; skipping"; exit 0; fi
-          curl --silent --show-error --max-time 60 --retry 2 --output /dev/null --write-out "%{http_code}\n" "$URL"
+          URL: ${{ vars.API_HEALTH_URL }}
+        run: curl --silent --show-error --max-time 60 --retry 2 --output /dev/null --write-out "%{http_code}\n" "$URL"
