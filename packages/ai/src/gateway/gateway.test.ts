@@ -107,6 +107,38 @@ describe('LlmGateway', () => {
     expect((await gateway.run(opts())).value).toBe('groq');
   });
 
+  it('lets a background call wait for a busy preferred model instead of falling back', async () => {
+    let offset = 0;
+    const gemini = new FakeProvider('gemini', () => 'gemini');
+    const groq = new FakeProvider('groq', () => 'groq');
+    const gateway = new LlmGateway({
+      providers: { gemini, groq },
+      limits: { 'gemini:primary': { rpm: 1 } },
+      maxQueueWaitMs: 0,
+      now: () => Date.now() + offset,
+    });
+    expect((await gateway.run(opts())).value).toBe('gemini');
+    offset += 59_700; // gemini's minute frees up in ~300 ms
+    expect((await gateway.run(opts())).value).toBe('groq');
+    expect((await gateway.run(opts({ maxQueueWaitMs: 5_000 }))).value).toBe('gemini');
+  });
+
+  it('settles a reservation to the reported usage, so unused output budget is not held', async () => {
+    const gemini = new FakeProvider('gemini', () => 'gemini'); // reports 150 tokens used
+    const groq = new FakeProvider('groq', () => 'groq');
+    const gateway = new LlmGateway({
+      providers: { gemini, groq },
+      limits: { 'gemini:primary': { tpm: 1500 } },
+      maxQueueWaitMs: 10,
+    });
+    const large = opts({
+      request: { system: 'sys', messages: [{ role: 'user', content: 'hi' }], maxOutputTokens: 1000 },
+    });
+    expect((await gateway.run(large)).value).toBe('gemini');
+    // Two ~1,000-token reservations exceed 1,500 tokens/minute; 150 used + one reservation doesn't.
+    expect((await gateway.run(large)).value).toBe('gemini');
+  });
+
   it('throws AllProvidersFailedError when the whole route fails', async () => {
     const gateway = new LlmGateway({
       providers: { gemini: new FakeProvider('gemini', () => unavailable()) },
@@ -210,6 +242,16 @@ describe('RateLimiter', () => {
     now = 61_000;
     expect(limiter.reserve('k', 90)).toBe(0);
     expect(limiter.reserve('k', 20)).toBeGreaterThan(0);
+  });
+
+  it('replaces a reservation with the tokens actually used', () => {
+    const limiter = new RateLimiter({ k: { tpm: 100 } }, () => 0);
+    expect(limiter.reserve('k', 80)).toBe(0);
+    expect(limiter.reserve('k', 80)).toBeGreaterThan(0);
+    limiter.settle('k', 80, 15);
+    expect(limiter.reserve('k', 80)).toBe(0);
+    limiter.settle('k', 80, 0); // no usage reported: the estimate stands
+    expect(limiter.reserve('k', 10)).toBeGreaterThan(0);
   });
 
   it('parses env-style specs', () => {

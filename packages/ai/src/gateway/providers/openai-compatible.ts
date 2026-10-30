@@ -39,10 +39,12 @@ interface ChatCompletion {
 }
 
 function usageOf(usage: ChatCompletion['usage']): Usage {
+  // completion_tokens includes the reasoning tokens; Usage keeps the two apart (as Gemini reports).
+  const reasoningTokens = usage?.completion_tokens_details?.reasoning_tokens ?? 0;
   return {
     inputTokens: usage?.prompt_tokens ?? 0,
-    outputTokens: usage?.completion_tokens ?? 0,
-    reasoningTokens: usage?.completion_tokens_details?.reasoning_tokens ?? 0,
+    outputTokens: Math.max(0, (usage?.completion_tokens ?? 0) - reasoningTokens),
+    reasoningTokens,
     cachedInputTokens: usage?.prompt_tokens_details?.cached_tokens ?? 0,
   };
 }

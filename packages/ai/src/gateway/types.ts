@@ -34,6 +34,7 @@ export interface GenerateRequest {
 
 export interface Usage {
   inputTokens: number;
+  /** Visible output only; thinking is counted separately in `reasoningTokens`. */
   outputTokens: number;
   reasoningTokens: number;
   cachedInputTokens: number;

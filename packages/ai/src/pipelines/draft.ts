@@ -81,6 +81,8 @@ export interface DraftOptions {
   onDelta?: (text: string) => void;
   /** A streaming model failed mid-way; the UI should clear what it has shown so far. */
   onReset?: () => void;
+  /** How long to wait for a busy preferred model before falling back (see RunOptions). */
+  maxQueueWaitMs?: number;
 }
 
 /**
@@ -176,6 +178,7 @@ export async function runDraft(
     promptVersion: DRAFT_PROMPT_VERSION,
     context: options.context,
     signal: options.signal,
+    maxQueueWaitMs: options.maxQueueWaitMs,
     metadata: { baselineInputTokens, inputTokensEstimate, policies: selection.sections.map((s) => s.slug) },
   };
 

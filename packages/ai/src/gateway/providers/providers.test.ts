@@ -215,6 +215,26 @@ describe('OpenAICompatibleProvider', () => {
     });
   });
 
+  it('reports reasoning apart from visible output (completion_tokens includes both)', async () => {
+    const { fetchImpl } = mockFetch([
+      () =>
+        json({
+          choices: [{ message: { content: '{"a":"b"}' }, finish_reason: 'stop' }],
+          usage: {
+            prompt_tokens: 50,
+            completion_tokens: 120,
+            completion_tokens_details: { reasoning_tokens: 80 },
+          },
+        }),
+    ]);
+    const { usage } = await groq(fetchImpl).generate(
+      { provider: 'groq', model: 'openai/gpt-oss-20b' },
+      request,
+      AbortSignal.timeout(1000),
+    );
+    expect(usage).toMatchObject({ inputTokens: 50, outputTokens: 40, reasoningTokens: 80 });
+  });
+
   it('downgrades to JSON mode when a model rejects json_schema', async () => {
     const { fetchImpl, calls } = mockFetch([
       () => json({ error: { message: 'response_format json_schema is not supported for this model' } }, 400),

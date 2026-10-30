@@ -43,6 +43,12 @@ export interface RunOptions<T> {
   context?: CallContext;
   signal?: AbortSignal;
   metadata?: Record<string, unknown>;
+  /**
+   * Longest this call waits for local rate-limit capacity on a model before trying the next one
+   * (default: the gateway's maxQueueWaitMs). Background work can wait for a preferred model;
+   * someone watching the screen can't.
+   */
+  maxQueueWaitMs?: number;
 }
 
 export interface RunResult<T> {
@@ -195,11 +201,9 @@ export class LlmGateway {
       );
       return null;
     }
-    const estimate =
-      estimateTokens(opts.request.system + opts.request.messages.map((m) => m.content).join('\n')) +
-      opts.request.maxOutputTokens;
+    const estimate = this.reservationFor(opts);
     let wait = this.limiter.reserve(key, estimate);
-    if (wait > 0 && wait <= (this.options.maxQueueWaitMs ?? 1500)) {
+    if (wait > 0 && wait <= (opts.maxQueueWaitMs ?? this.options.maxQueueWaitMs ?? 1500)) {
       await sleep(wait);
       wait = this.limiter.reserve(key, estimate);
     }
@@ -227,9 +231,23 @@ export class LlmGateway {
     this.checkHealthChange();
   }
 
+  /** Tokens a request holds against the per-minute limit while in flight: input + output budget. */
+  private reservationFor<T>(opts: RunOptions<T>): number {
+    return (
+      estimateTokens(opts.request.system + opts.request.messages.map((m) => m.content).join('\n')) +
+      opts.request.maxOutputTokens
+    );
+  }
+
   private settleSuccess(ref: ModelRef) {
     this.breaker(modelKey(ref)).recordSuccess();
     this.checkHealthChange();
+  }
+
+  /** Swaps a finished request's reservation for the tokens the provider reported using. */
+  private settleUsage<T>(ref: ModelRef, opts: RunOptions<T>, usage: Usage) {
+    const used = usage.inputTokens + usage.outputTokens + usage.reasoningTokens;
+    this.limiter.settle(modelKey(ref), this.reservationFor(opts), used);
   }
 
   private parseOutput<T>(opts: RunOptions<T>, result: GenerateResult, ref: ModelRef): T {
@@ -291,6 +309,7 @@ export class LlmGateway {
           );
           const value = this.parseOutput(opts, result, ref);
           this.settleSuccess(ref);
+          this.settleUsage(ref, opts, result.usage);
           this.report(opts, ref, attempt, started, 'success', result.usage, undefined, failures.length);
           return { value, result, ref, latencyMs: this.now() - started, failures };
         } catch (raw) {
@@ -349,6 +368,7 @@ export class LlmGateway {
         if (!final) throw new ProviderError('invalid_output', 'Stream ended without a result', { ...ref });
         const value = this.parseOutput(opts, final, ref);
         this.settleSuccess(ref);
+        this.settleUsage(ref, opts, final.usage);
         this.report(opts, ref, 1, started, 'success', final.usage, undefined, failures.length);
         yield { type: 'done', run: { value, result: final, ref, latencyMs: this.now() - started, failures } };
         return;

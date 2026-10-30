@@ -87,8 +87,10 @@ configuration either way.
   once: a bad API key for 10 minutes, an exhausted daily quota until the provider's stated reset (at least 15
   minutes). A dead provider costs nothing instead of a timeout on every ticket.
 - **Client-side rate limits** (RPM, TPM, RPD) per model, kept just under each free tier (`LEAF_RATE_LIMITS` overrides),
-  so quota errors are mostly avoided rather than handled. Gemini's free tier allows 20 requests a day per Flash model
-  (October 2026), so on a busy day drafts move on to Groq once both Flash quotas are used.
+  so quota errors are mostly avoided rather than handled. A request holds its estimate (input plus output budget)
+  while in flight, then the usage the provider reported. When a model is at capacity, interactive calls move straight
+  on; background drafts wait up to a minute for it rather than fall to the last resort. Gemini's free tier allows 20
+  requests a day per Flash model (October 2026), so on a busy day drafts move on to Groq once both Flash quotas are used.
 - **Retries:** one quick retry on the same model when the provider is briefly unavailable (503 "high demand") or the
   network drops. A timeout (or a 408/504) has already used its time budget (20 s; 30 s for drafts), so it moves
   straight to the next model. A per-minute 429 skips the model for the provider's stated wait; only a per-day quota

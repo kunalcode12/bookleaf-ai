@@ -429,7 +429,9 @@ export class TicketAiService {
             row.assigneeId && row.assigneeName ? { name: row.assigneeName, title: row.assigneeTitle } : null,
           queryEmbedding: loaded.embedding,
         },
-        { context: { ticketId, draftId: draft.id } },
+        // Nobody is waiting on a background draft, so it may wait up to a minute (one rate-limit
+        // window) for a preferred model rather than take a weak last-resort one or the outline.
+        { context: { ticketId, draftId: draft.id }, maxQueueWaitMs: 60_000 },
       );
       await this.saveOutcome(draft.id, ticketId, outcome);
     } catch (error) {

@@ -6,7 +6,10 @@
 export interface RateLimitSpec {
   /** Requests per minute. */
   rpm?: number;
-  /** Tokens per minute (estimated input + max output). */
+  /**
+   * Tokens per minute. A request holds its estimate (input + max output) while in flight, then
+   * the usage the provider reported — providers count what was used, not the output budget.
+   */
   tpm?: number;
   /** Requests per rolling 24 hours. */
   rpd?: number;
@@ -65,6 +68,22 @@ export class RateLimiter {
     w.tokens.push({ at: now, tokens: estimatedTokens });
     w.daily.push(now);
     return 0;
+  }
+
+  /**
+   * Replaces a finished request's reserved estimate with the tokens it actually used, freeing the
+   * difference for the rest of the minute (a draft reserves its whole output budget but typically
+   * writes a third of it).
+   */
+  settle(key: string, estimatedTokens: number, actualTokens: number): void {
+    const tokens = this.windows.get(key)?.tokens;
+    if (!tokens || actualTokens <= 0) return;
+    for (let i = tokens.length - 1; i >= 0; i -= 1) {
+      if (tokens[i]!.tokens === estimatedTokens) {
+        tokens[i]!.tokens = actualTokens;
+        return;
+      }
+    }
   }
 
   /** The provider told us to back off (429 + Retry-After). */
