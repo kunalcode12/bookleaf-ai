@@ -5,7 +5,7 @@ import {
   type QueueStats,
   type TicketEventType,
 } from '@bookleaf/contracts';
-import { type Executor, rowsOf, schema } from '@bookleaf/db';
+import { type Executor, rowsOf, schema, tstz } from '@bookleaf/db';
 import { addDays } from '@bookleaf/domain';
 import { and, asc, desc, eq, gte, ilike, inArray, isNull, lt, or, type SQL, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
@@ -126,8 +126,8 @@ export async function findTicket(
 export function urgencySql(now: Date): SQL<number> {
   return sql<number>`(case when ${tickets.status} in ('resolved', 'closed') then 0 else least(100,
     (case ${tickets.priority} when 'critical' then 80 when 'high' then 60 when 'medium' then 40 when 'low' then 20 else 50 end)
-    + least(12, floor(extract(epoch from (${now}::timestamptz - ${tickets.createdAt})) / 21600))::int
-    + (case when ${tickets.firstResponseAt} is null and ${tickets.slaDueAt} is not null and ${tickets.slaDueAt} < ${now}::timestamptz then 8 else 0 end)
+    + least(12, floor(extract(epoch from (${tstz(now)} - ${tickets.createdAt})) / 21600))::int
+    + (case when ${tickets.firstResponseAt} is null and ${tickets.slaDueAt} is not null and ${tickets.slaDueAt} < ${tstz(now)} then 8 else 0 end)
   ) end)`;
 }
 
@@ -154,11 +154,11 @@ export async function listAdminTickets(
   if (query.flag) where.push(sql`${query.flag}::app.ai_flag = any(${tickets.aiFlags})`);
   if (query.sla === 'breached') {
     where.push(
-      sql`${UNRESOLVED} and ${tickets.firstResponseAt} is null and ${tickets.slaDueAt} < ${ctx.now}::timestamptz`,
+      sql`${UNRESOLVED} and ${tickets.firstResponseAt} is null and ${tickets.slaDueAt} < ${tstz(ctx.now)}`,
     );
   } else if (query.sla === 'at_risk') {
     where.push(
-      sql`${UNRESOLVED} and ${tickets.firstResponseAt} is null and ${tickets.slaDueAt} >= ${ctx.now}::timestamptz and ${tickets.slaDueAt} - ${ctx.now}::timestamptz < ${AT_RISK_WINDOW}`,
+      sql`${UNRESOLVED} and ${tickets.firstResponseAt} is null and ${tickets.slaDueAt} >= ${tstz(ctx.now)} and ${tickets.slaDueAt} - ${tstz(ctx.now)} < ${AT_RISK_WINDOW}`,
     );
   }
   if (query.q) {
@@ -228,14 +228,14 @@ export async function queueStats(tx: Executor, profileId: string, now: Date): Pr
       inProgress: sql<number>`count(*) filter (where ${tickets.status} = 'in_progress')::int`,
       critical: sql<number>`count(*) filter (where ${UNRESOLVED} and ${tickets.priority} = 'critical')::int`,
       high: sql<number>`count(*) filter (where ${UNRESOLVED} and ${tickets.priority} = 'high')::int`,
-      breaching: sql<number>`count(*) filter (where ${UNRESOLVED} and ${tickets.firstResponseAt} is null and ${tickets.slaDueAt} < ${now}::timestamptz)::int`,
-      atRisk: sql<number>`count(*) filter (where ${UNRESOLVED} and ${tickets.firstResponseAt} is null and ${tickets.slaDueAt} >= ${now}::timestamptz and ${tickets.slaDueAt} - ${now}::timestamptz < ${AT_RISK_WINDOW})::int`,
+      breaching: sql<number>`count(*) filter (where ${UNRESOLVED} and ${tickets.firstResponseAt} is null and ${tickets.slaDueAt} < ${tstz(now)})::int`,
+      atRisk: sql<number>`count(*) filter (where ${UNRESOLVED} and ${tickets.firstResponseAt} is null and ${tickets.slaDueAt} >= ${tstz(now)} and ${tickets.slaDueAt} - ${tstz(now)} < ${AT_RISK_WINDOW})::int`,
       unassigned: sql<number>`count(*) filter (where ${UNRESOLVED} and ${tickets.assigneeId} is null)::int`,
       mine: sql<number>`count(*) filter (where ${UNRESOLVED} and ${tickets.assigneeId} = ${profileId})::int`,
       needsReview: sql<number>`count(*) filter (where ${UNRESOLVED} and 'needs_review'::app.ai_flag = any(${tickets.aiFlags}))::int`,
       awaitingTriage: sql<number>`count(*) filter (where ${tickets.triageStatus} in ('pending', 'processing'))::int`,
       possibleInjection: sql<number>`count(*) filter (where ${UNRESOLVED} and 'possible_injection'::app.ai_flag = any(${tickets.aiFlags}))::int`,
-      resolvedToday: sql<number>`count(*) filter (where ${tickets.resolvedAt} >= date_trunc('day', ${now}::timestamptz))::int`,
+      resolvedToday: sql<number>`count(*) filter (where ${tickets.resolvedAt} >= date_trunc('day', ${tstz(now)}))::int`,
     })
     .from(tickets);
   return row!;

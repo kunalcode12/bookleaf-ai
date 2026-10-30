@@ -9,7 +9,7 @@ import {
   type TicketPriority,
   type TicketStatus,
 } from '@bookleaf/contracts';
-import { type Database, rowsOf, type Transaction, withActor } from '@bookleaf/db';
+import { type Database, rowsOf, type Transaction, tstz, withActor } from '@bookleaf/db';
 import { addDays, startOfUtcDay, toIsoDate } from '@bookleaf/domain';
 import { type SQL, sql } from 'drizzle-orm';
 import type { RequestActor } from '../../http/context';
@@ -44,7 +44,7 @@ export class InsightsService {
     const from = addDays(to, -(days - 1));
     const end = addDays(to, 1);
     const inRange = (column: string) =>
-      sql`${sql.raw(column)} >= ${from}::timestamptz and ${sql.raw(column)} < ${end}::timestamptz`;
+      sql`${sql.raw(column)} >= ${tstz(from)} and ${sql.raw(column)} < ${tstz(end)}`;
 
     return withActor(
       this.db,
@@ -61,7 +61,7 @@ export class InsightsService {
                 count(*) filter (where status = 'resolved')::int as s_resolved,
                 count(*) filter (where status = 'closed')::int as s_closed,
                 count(*) filter (where status in ('open', 'in_progress') and first_response_at is null
-                                   and sla_due_at < ${now}::timestamptz)::int as breaching
+                                   and sla_due_at < ${tstz(now)})::int as breaching
               from app.tickets`,
         );
 

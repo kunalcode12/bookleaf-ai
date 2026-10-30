@@ -5,9 +5,9 @@ import {
   TICKET_CATEGORY_LABELS,
   type TicketCategory,
 } from '@bookleaf/contracts';
-import { type Database, rowsOf, SYSTEM_ACTOR, schema, withActor } from '@bookleaf/db';
+import { type Database, rowsOf, SYSTEM_ACTOR, schema, tstz, withActor } from '@bookleaf/db';
 import { toIsoDate } from '@bookleaf/domain';
-import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, arrayOverlaps, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
 import type { RequestActor } from '../../http/context';
 import type { Clock } from '../../lib/clock';
@@ -53,7 +53,7 @@ export class AlertService {
           from ${tickets} self
           join ${tickets} other on other.embedding is not null
          where self.id = ${ticketId} and self.embedding is not null
-           and other.created_at >= ${since}::timestamptz
+           and other.created_at >= ${tstz(since)}
            and other.status in ('open', 'in_progress')
          order by other.embedding <=> self.embedding
          limit 25`);
@@ -79,9 +79,7 @@ export class AlertService {
       const [existing] = await tx
         .select({ id: incidentAlerts.id, status: incidentAlerts.status, ticketIds: incidentAlerts.ticketIds })
         .from(incidentAlerts)
-        .where(
-          and(eq(incidentAlerts.kind, 'similar_cluster'), sql`${incidentAlerts.ticketIds} && ${ids}::uuid[]`),
-        )
+        .where(and(eq(incidentAlerts.kind, 'similar_cluster'), arrayOverlaps(incidentAlerts.ticketIds, ids)))
         .orderBy(desc(incidentAlerts.createdAt))
         .limit(1);
       if (existing) {
@@ -122,13 +120,11 @@ export class AlertService {
       const rows = await tx
         .select({
           category: tickets.category,
-          recent: sql<number>`count(*) filter (where ${tickets.createdAt} >= ${dayAgo}::timestamptz)::int`,
-          previous: sql<number>`count(*) filter (where ${tickets.createdAt} < ${dayAgo}::timestamptz)::int`,
+          recent: sql<number>`count(*) filter (where ${tickets.createdAt} >= ${tstz(dayAgo)})::int`,
+          previous: sql<number>`count(*) filter (where ${tickets.createdAt} < ${tstz(dayAgo)})::int`,
         })
         .from(tickets)
-        .where(
-          and(sql`${tickets.createdAt} >= ${weekAgo}::timestamptz`, sql`${tickets.category} is not null`),
-        )
+        .where(and(sql`${tickets.createdAt} >= ${tstz(weekAgo)}`, sql`${tickets.category} is not null`))
         .groupBy(tickets.category);
 
       for (const row of rows) {
@@ -138,7 +134,7 @@ export class AlertService {
         const latest = await tx
           .select({ id: tickets.id })
           .from(tickets)
-          .where(and(eq(tickets.category, row.category), sql`${tickets.createdAt} >= ${dayAgo}::timestamptz`))
+          .where(and(eq(tickets.category, row.category), sql`${tickets.createdAt} >= ${tstz(dayAgo)}`))
           .orderBy(desc(tickets.createdAt))
           .limit(25);
         const label = TICKET_CATEGORY_LABELS[row.category];
