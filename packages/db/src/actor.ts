@@ -25,6 +25,10 @@ export const APP_DB_ROLE = 'bookleaf_app';
  *   2. drops to the restricted `bookleaf_app` role, so RLS applies even though the pool connects
  *      as the table owner.
  * Both settings vanish at COMMIT/ROLLBACK, so pooled connections never leak identity.
+ *
+ * The setup is a single statement — one round trip — because every request pays it:
+ * set_config('role', …, true) is SET LOCAL ROLE, and set_config('transaction_read_only', 'on',
+ * true) is SET TRANSACTION READ ONLY. The role switch comes last, after the settings it guards.
  */
 export async function withActor<T>(
   db: Database,
@@ -33,13 +37,12 @@ export async function withActor<T>(
   options: ActorTransactionOptions = {},
 ): Promise<T> {
   return db.transaction(async (tx) => {
-    if (options.readOnly) await tx.execute(sql.raw('set transaction read only'));
     const profileId = actor.kind === 'system' ? '' : actor.profileId;
     const authorId = actor.kind === 'author' ? actor.authorId : '';
+    const readOnly = options.readOnly ? sql`set_config('transaction_read_only', 'on', true),` : sql.empty();
     await tx.execute(
-      sql`select set_config('app.actor_role', ${actor.kind}, true), set_config('app.actor_id', ${profileId}, true), set_config('app.actor_author_id', ${authorId}, true)`,
+      sql`select set_config('app.actor_role', ${actor.kind}, true), set_config('app.actor_id', ${profileId}, true), set_config('app.actor_author_id', ${authorId}, true), ${readOnly} set_config('role', ${APP_DB_ROLE}, true)`,
     );
-    await tx.execute(sql.raw(`set local role ${APP_DB_ROLE}`));
     return work(tx);
   });
 }

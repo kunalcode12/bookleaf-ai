@@ -41,17 +41,51 @@ export async function createDatabase(options: DatabaseOptions): Promise<Database
   return options.url.startsWith('pglite://') ? createPglite(options) : createPostgres(options);
 }
 
+/** The slice of a postgres-js client (or transaction/savepoint scope) that Drizzle drives. */
+interface ScopedClient {
+  unsafe(query: string, parameters?: unknown[], options?: { prepare?: boolean }): unknown;
+  begin?: (...args: unknown[]) => unknown;
+  savepoint?: (...args: unknown[]) => unknown;
+}
+
+/**
+ * Drizzle sends every query through postgres-js `unsafe()`, which defaults to unnamed statements:
+ * each parameterised query then waits for a describe round trip before it can execute, and the
+ * queries behind it can't pipeline — so a transaction's Promise.all ran one query at a time, two
+ * round trips each. Named statements are described once per connection; after that a query costs
+ * a single round trip and concurrent queries share one. Transactions and savepoints hand Drizzle
+ * a fresh scoped client, so those are switched over as they open.
+ */
+function preferPreparedStatements(client: ScopedClient): void {
+  const unsafe = client.unsafe;
+  client.unsafe = (query, parameters, options) => unsafe(query, parameters, { ...options, prepare: true });
+  for (const method of ['begin', 'savepoint'] as const) {
+    const open = client[method];
+    if (!open) continue;
+    client[method] = (...args: unknown[]) => {
+      const work = args.pop() as (scoped: ScopedClient) => unknown;
+      return open(...args, (scoped: ScopedClient) => {
+        preferPreparedStatements(scoped);
+        return work(scoped);
+      });
+    };
+  }
+}
+
 function createPostgres(options: DatabaseOptions): DatabaseHandle {
   // Supabase's transaction pooler (6543) cannot hold prepared statements or LISTEN.
   const transactionPooler = /:6543(\/|$|\?)/.test(options.url);
   const client = postgres(options.url, {
     max: options.poolMax ?? 10,
     prepare: !transactionPooler,
-    idle_timeout: 30,
+    // Long enough to outlast a reader's pause: a fresh connection costs a TLS + SCRAM handshake
+    // and re-describes every statement it runs.
+    idle_timeout: 120,
     connect_timeout: 10,
     onnotice: () => {},
     connection: { application_name: options.applicationName ?? 'bookleaf-api' },
   });
+  if (!transactionPooler) preferPreparedStatements(client as unknown as ScopedClient);
   const db = drizzlePostgres({ client, schema }) as unknown as Database;
 
   return {
