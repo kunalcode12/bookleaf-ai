@@ -179,7 +179,7 @@ export async function createContainer(
   const email =
     overrides.email ??
     (config.RESEND_API_KEY
-      ? new ResendEmailSender(config.RESEND_API_KEY, config.EMAIL_FROM)
+      ? new ResendEmailSender(config.RESEND_API_KEY, config.EMAIL_FROM, logger, config.EMAIL_REDIRECT_TO)
       : new LogEmailSender(logger));
 
   const db = handle.db;

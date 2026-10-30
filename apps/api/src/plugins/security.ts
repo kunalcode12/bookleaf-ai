@@ -51,8 +51,15 @@ export const securityPlugin = fp(async (app: FastifyInstance, options: { config:
 
   if (config.ORIGIN_SECRET) {
     const secret = config.ORIGIN_SECRET;
+    // Health checks and the public API reference (linked from the desk) stay reachable directly;
+    // neither returns data, and every data route still requires a session.
+    const open = (url: string) =>
+      url.startsWith('/health') ||
+      url === '/docs' ||
+      url.startsWith('/docs/') ||
+      url.startsWith('/openapi.json');
     app.addHook('onRequest', async (request) => {
-      if (request.url.startsWith('/health')) return;
+      if (open(request.url)) return;
       const provided = request.headers['x-origin-secret'];
       if (typeof provided !== 'string' || !safeEqual(provided, secret)) {
         throw Errors.forbidden('Direct access to the API is not allowed.');

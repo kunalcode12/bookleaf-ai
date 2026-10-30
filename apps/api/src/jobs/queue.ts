@@ -41,7 +41,8 @@ export class PgBossQueue implements JobQueue {
       : new PgBoss({
           connectionString: handle.connectionString ?? undefined,
           schema: 'pgboss',
-          max: 4,
+          // Small: Supabase's session pooler allows ~15 connections per project in total.
+          max: 2,
           application_name: 'bookleaf-jobs',
         });
     this.boss.on('error', (error) => logger.error({ err: error }, 'job queue error'));

@@ -38,7 +38,8 @@ second way in.
 Helmet (HSTS in production, `nosniff`, a referrer policy, `X-Frame-Options: DENY` on the web), a CORS allowlist of
 configured origins, `Cache-Control: no-store` on every API response, and a Content-Security-Policy on the web app in
 production (same-origin scripts and connections only, plus signed uploads to Supabase Storage). An optional shared secret (`ORIGIN_SECRET` / `API_ORIGIN_SECRET`) makes the API reject calls that don't
-come through the web tier.
+come through the web tier; only the health checks and the public API reference (`/docs`, `/openapi.json`) stay
+reachable directly, since neither returns data.
 
 ## Logging
 

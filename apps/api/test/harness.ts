@@ -29,7 +29,7 @@ export interface TestContext {
  * Postgres with migrations and RLS, local auth, an in-process job queue and a fixed clock.
  */
 export async function createTestContext(
-  options: { leaf?: Leaf; demoTickets?: boolean } = {},
+  options: { leaf?: Leaf; demoTickets?: boolean; env?: Record<string, string> } = {},
 ): Promise<TestContext> {
   const config = loadConfig({
     NODE_ENV: 'test',
@@ -38,6 +38,7 @@ export async function createTestContext(
     APP_ORIGINS: ORIGIN,
     PUBLIC_APP_URL: ORIGIN,
     LOCAL_STORAGE_DIR: './.data/test-uploads',
+    ...options.env,
   });
   const logger = pino({ level: 'silent' });
   const clock = fixedClock(NOW);

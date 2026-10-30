@@ -152,3 +152,25 @@ describe('author data isolation', () => {
     expect(notes).toHaveLength(0);
   });
 });
+
+describe('origin secret', () => {
+  it('rejects direct calls, but keeps health checks and the API reference reachable', async () => {
+    const secret = 'shared-secret-only-the-web-proxy-knows';
+    const gated = await createTestContext({ env: { ORIGIN_SECRET: secret } });
+    try {
+      const login = { method: 'POST' as const, url: '/api/v1/auth/token', payload: PRIYA };
+      expect((await gated.app.inject(login)).statusCode).toBe(403);
+      expect((await gated.app.inject({ ...login, headers: { 'x-origin-secret': 'guess' } })).statusCode).toBe(
+        403,
+      );
+      expect((await gated.app.inject({ ...login, headers: { 'x-origin-secret': secret } })).statusCode).toBe(
+        200,
+      );
+      for (const url of ['/health/live', '/docs', '/openapi.json']) {
+        expect((await gated.app.inject({ method: 'GET', url })).statusCode, url).toBeLessThan(400);
+      }
+    } finally {
+      await gated.close();
+    }
+  });
+});

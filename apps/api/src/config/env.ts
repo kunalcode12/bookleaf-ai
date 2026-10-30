@@ -37,7 +37,8 @@ const EnvSchema = z
     TRUST_PROXY: bool(true),
 
     DATABASE_URL: z.string().min(1).default('pglite://./.data/pglite'),
-    DATABASE_POOL_MAX: z.coerce.number().int().min(2).max(50).default(10),
+    /** Per process. Supabase's session pooler caps a project at ~15 connections across all clients. */
+    DATABASE_POOL_MAX: z.coerce.number().int().min(2).max(50).default(5),
     AUTO_MIGRATE: bool(true),
     /** Seed the sample dataset automatically when the database is empty (local/demo). */
     AUTO_SEED: bool(false),
@@ -76,7 +77,14 @@ const EnvSchema = z
     LEAF_PAID_TIER: bool(false),
 
     RESEND_API_KEY: optionalSecret,
-    EMAIL_FROM: z.string().default('BookLeaf Author Support <support@bookleaf.test>'),
+    /** Without a verified domain in Resend, use onboarding@resend.dev. */
+    EMAIL_FROM: z.string().default('BookLeaf Author Support <onboarding@resend.dev>'),
+    /** Demo/staging: deliver every email to this address (e.g. the Resend account owner) instead. */
+    EMAIL_REDIRECT_TO: z
+      .string()
+      .optional()
+      .transform((v) => v?.trim() || null)
+      .pipe(z.email().nullable()),
 
     /** inline: workers run inside the API process. off: run `pnpm start:worker` separately. */
     WORKER_MODE: z.enum(['inline', 'off']).default('inline'),
@@ -107,11 +115,19 @@ const EnvSchema = z
           message: 'Local auth is for development only; use AUTH_PROVIDER=supabase in production',
         });
       }
-      if (env.FILE_SIGNING_SECRET.startsWith('local-')) {
+      if (env.STORAGE_PROVIDER === 'local' && env.FILE_SIGNING_SECRET.startsWith('local-')) {
         ctx.addIssue({
           code: 'custom',
           path: ['FILE_SIGNING_SECRET'],
           message: 'Set a real secret in production',
+        });
+      }
+      if (env.DATABASE_URL.startsWith('pglite://')) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['DATABASE_URL'],
+          message:
+            'The embedded database is for development; use a Postgres URL (Supabase session pooler) in production',
         });
       }
     }
